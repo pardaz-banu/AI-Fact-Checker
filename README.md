@@ -11,7 +11,7 @@ This solution will be implemented as a single, fully-responsive HTML file using 
 
   <li>JavaScript logic to capture the user's claim and call the Gemini API. </li>
 
-  <li>Google Search Grounding is enabled in the API payload (tools: [{ "google_search": {} }]).</li>
+  <li>Google Search Grounding is enabled in the API payload.</li>
 
   <li>Error Handling and Loading Indicators for a polished user experience.</li>
 
