@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Grounded Fact Checker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font family -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        /* Custom scrollbar styling for the results area */
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Responsive height for textarea and results container */
+        @media (min-width: 640px) {
+            #results-container {
+                min-height: 400px;
+            }
+        }
+        .tip-box {
+            background-color: #e0f2f1; /* Light cyan */
+            border-left: 5px solid #0d9488; /* Teal */
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8 flex items-center justify-center">
+
+    <div class="w-full max-w-4xl bg-white shadow-2xl rounded-xl p-6 sm:p-10 border border-gray-100">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">
+                <span class="text-indigo-600">AI</span>  Fact Checker
+            </h1>
+            <p class="text-gray-500">Uses the Gemini API with Google Search grounding.</p>
+        </header>
+
+        <!-- Guide Box -->
+        <div class="tip-box mb-6">
+            <h3 class="font-bold text-lg text-gray-800 mb-2 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-teal-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                What Claims Does This Tool Check?
+            </h3>
+            <p class="text-gray-700 text-sm">
+                This tool uses AI grounded in real-time Google Search results. It works best with **verifiable, factual claims** that can be looked up on the web, such as:
+            </p>
+            <ul class="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1 pl-4">
+                <li>**Current Events:** "Who won the latest F1 Grand Prix?"</li>
+                <li>**Historical Data:** "What is the capital of Australia?"</li>
+                <li>**Public Figures/Organizations:** "What is the mission statement of the World Health Organization?"</li>
+            </ul>
+            <p class="text-gray-700 text-sm mt-3 font-semibold">
+                It is **not** designed for opinions, hypotheticals, or personal questions.
+            </p>
+        </div>
+
+
+        <!-- Input Area -->
+        <div class="space-y-4">
+            <label for="claim-input" class="block text-lg font-medium text-gray-700">Enter a Verifiable Claim:</label>
+            <textarea id="claim-input" rows="4" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out resize-none" placeholder="e.g., 'What are the current primary goals of the European Space Agency?' or 'How long does a US patent typically last?'"></textarea>
+            
+            <button id="check-button" class="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 ease-in-out transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 flex items-center justify-center">
+                <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Check Facts
+            </button>
+        </div>
+
+        <!-- Output Area -->
+        <div class="mt-8 border-t pt-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Results</h2>
+            <div id="results-container" class="bg-gray-50 p-4 rounded-lg shadow-inner min-h-[150px] scrollbar-thin overflow-y-auto">
+                <p id="initial-message" class="text-gray-500 italic">Results will appear here, grounded with real-time Google Search data.</p>
+                <div id="response-text" class="text-gray-800 leading-relaxed space-y-4 hidden"></div>
+                <div id="sources-list" class="mt-4 pt-4 border-t border-gray-200 hidden">
+                    <p class="font-medium text-gray-600 mb-2">Sources Used:</p>
+                    <ul id="sources-ul" class="list-none space-y-2"></ul>
+                </div>
+                <div id="error-message" class="text-red-600 font-medium hidden"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-10 pt-4 border-t text-center text-sm text-gray-400">
+             Gemini API with Google Search Grounding.
+        </footer>
+    </div>
+
+    <script type="module">
+        // Global environment variables provided by the platform (required for API calls)
+        const apiKey = "AIzaSyBXFLg2pOoXPZ7wjRlyFtk1cckTgmn7G2g" // API key is provided by the canvas environment for fetch calls
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        const claimInput = document.getElementById('claim-input');
+        const checkButton = document.getElementById('check-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const initialMessage = document.getElementById('initial-message');
+        const responseTextDiv = document.getElementById('response-text');
+        const sourcesListDiv = document.getElementById('sources-list');
+        const sourcesUl = document.getElementById('sources-ul');
+        const errorMessageDiv = document.getElementById('error-message');
+
+        // Function to handle exponential backoff for API calls
+        async function fetchWithBackoff(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429 && response.ok) {
+                        return response;
+                    }
+                    if (response.status === 429 && i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        console.warn(`Rate limit hit (429). Retrying in ${Math.round(delay / 1000)}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    return response; // Return non-200/non-429 for standard error handling
+                } catch (error) {
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        console.error(`Fetch error: ${error.message}. Retrying in ${Math.round(delay / 1000)}s...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+            throw new Error("API call failed after maximum retries.");
+        }
+
+
+        checkButton.addEventListener('click', async () => {
+            const claim = claimInput.value.trim();
+            if (!claim) {
+                displayError('Please enter a claim to check.');
+                return;
+            }
+
+            // UI state management (Loading)
+            initialMessage.classList.add('hidden');
+            responseTextDiv.classList.add('hidden');
+            sourcesListDiv.classList.add('hidden');
+            errorMessageDiv.classList.add('hidden');
+            responseTextDiv.innerHTML = '';
+            sourcesUl.innerHTML = '';
+
+            checkButton.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+            checkButton.classList.add('opacity-75', 'cursor-not-allowed');
+
+            // The system prompt guides the model to act as a fact-checker and rely on grounding
+            const systemPrompt = "You are a factual verification assistant. Use the Google Search tool to find and summarize reliable, current information about the user's query. Provide a concise, neutral answer and cite all sources clearly.";
+
+            const payload = {
+                contents: [{ parts: [{ text: claim }] }],
+                // Enable Google Search grounding
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+            
+            let result;
+            try {
+                const response = await fetchWithBackoff(apiUrl, options);
+
+                // Check for non-OK HTTP status *before* attempting JSON parse
+                if (!response.ok) {
+                    // Read the response body as text for a better error message
+                    const errorText = await response.text();
+                    throw new Error(`API Request Failed with Status ${response.status}: ${errorText.substring(0, 200)}...`);
+                }
+                
+                result = await response.json();
+                
+                const candidate = result.candidates?.[0];
+                const generatedText = candidate?.content?.parts?.[0]?.text;
+
+                if (generatedText) {
+                    // 1. Extract sources
+                    let sources = [];
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title); // Ensure sources are valid
+                    }
+                    
+                    // 2. Display the generated text
+                    // Replace newlines with paragraphs for better readability
+                    responseTextDiv.innerHTML = generatedText.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('');
+                    responseTextDiv.classList.remove('hidden');
+
+                    // 3. Display sources
+                    if (sources.length > 0) {
+                        sources.forEach((source, index) => {
+                            const listItem = document.createElement('li');
+                            listItem.className = 'text-sm text-gray-600 hover:text-indigo-600 transition duration-150';
+                            listItem.innerHTML = `<a href="${source.uri}" target="_blank" rel="noopener noreferrer" class="flex items-start">
+                                <span class="text-indigo-500 font-semibold mr-2 flex-shrink-0">${index + 1}.</span>
+                                <div>
+                                    <span class="font-medium">${source.title || 'Untitled Source'}</span>
+                                    <span class="block text-xs truncate text-gray-400">${source.uri}</span>
+                                </div>
+                            </a>`;
+                            sourcesUl.appendChild(listItem);
+                        });
+                        sourcesListDiv.classList.remove('hidden');
+                    } else {
+                        const infoItem = document.createElement('li');
+                        // Use a clearer and more prominent style for the explanation
+                        infoItem.className = 'text-sm text-gray-700 italic font-semibold';
+                        infoItem.textContent = 'Note: The AI provided this answer without citing specific web sources. This occurs if the claim is common knowledge or if the grounding tool could not find direct, verifiable attributions.';
+                        sourcesUl.appendChild(infoItem);
+                        sourcesListDiv.classList.remove('hidden');
+                    }
+
+                } else {
+                    displayError('The model did not return a response. This may happen with very obscure or non-factual queries. Please try a different, verifiable claim.');
+                }
+
+            } catch (error) {
+                console.error('Fact Check Failed:', error);
+                // Display the error message provided by the custom error or the underlying SyntaxError/NetworkError
+                displayError(`An unexpected error occurred: ${error.message}`);
+            } finally {
+                // UI state management (Done Loading)
+                checkButton.disabled = false;
+                loadingSpinner.classList.add('hidden');
+                checkButton.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        });
+
+        function displayError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            responseTextDiv.classList.add('hidden');
+            sourcesListDiv.classList.add('hidden');
+            initialMessage.classList.add('hidden'); // Ensure initial message is hidden on error
+        }
+
+    </script>
+</body>
+</html>
